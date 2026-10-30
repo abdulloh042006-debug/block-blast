@@ -1,4 +1,4 @@
-package com.ultimategames.blockblast.ads
+package com.ultimategames.gridbloom.ads
 
 /**
  * Policy-compliant frequency capper for Interstitial Ads.

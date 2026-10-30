@@ -1,4 +1,4 @@
-package com.ultimategames.blockblast.ads
+package com.ultimategames.gridbloom.ads
 
 /**
  * Lightweight, privacy-conscious monetization analytics logger.

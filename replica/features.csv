@@ -1,0 +1,26 @@
+feature,area,priority,original,clone,notes
+8x8 board with placement validation,core,must,yes,yes,
+3-piece tray refilled when empty,core,must,yes,yes,
+Drag and drop with ghost preview,core,must,yes,yes,finger offset on touch
+Tap-free no-rotation pieces,core,must,yes,yes,
+Row and column clear (simultaneous),core,must,yes,yes,
+Score with line and combo bonus,core,must,yes,yes,own numbers
+All-clear bonus,core,should,yes,yes,
+Game over detection,core,must,yes,yes,
+Fair piece generator,core,must,yes,yes,
+Best score saved,meta,must,yes,yes,
+Resume unfinished game,meta,should,yes,yes,
+Retry from game over,core,must,yes,yes,
+One-time rescue,meta,should,yes,yes,free once on web; rewarded ad on Android
+Clear animation and combo toast,juice,should,yes,yes,
+Sound effects (synthesised),juice,should,yes,yes,no audio files
+Haptics,juice,could,yes,yes,
+Skins / themes,meta,could,yes,yes,own palettes
+Settings (sound haptics skin),meta,should,yes,yes,
+Keyboard and mouse support (web),platform,should,no,yes,web only
+Mobile responsive layout,platform,must,yes,yes,
+Kotlin Android port,platform,should,no,partial,WebView host + AdMob bridge written; not compiled here (no Android SDK)
+AdMob rewarded rescue,monetisation,could,yes,partial,"wired through the bridge; bridge tested with a mock, not on a device"
+Online leaderboards,social,could,yes,skip,skip: needs a backend
+Daily challenges,meta,could,yes,no,not built: needs a content pipeline
+Original art/music/logo,brand,skip,yes,skip,not ours to copy

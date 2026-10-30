@@ -1,4 +1,4 @@
-package com.ultimategames.blockblast.ads
+package com.ultimategames.gridbloom.ads
 
 /**
  * Centralized Google AdMob configuration and release-readiness validator.

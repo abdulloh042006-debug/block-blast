@@ -1,4 +1,4 @@
-package com.ultimategames.blockblast.ads
+package com.ultimategames.gridbloom.ads
 
 import android.app.Activity
 import android.content.Context

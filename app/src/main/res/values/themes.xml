@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.BlockBlastUltimate" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+    <style name="Theme.Gridbloom" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <item name="android:statusBarColor">@color/bg_deep_navy</item>
         <item name="android:navigationBarColor">@color/bg_deep_navy</item>
         <item name="android:windowBackground">@color/bg_deep_navy</item>
