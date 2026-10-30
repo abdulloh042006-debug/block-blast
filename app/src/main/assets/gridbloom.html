@@ -1,0 +1,944 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0f1228">
+<title>Gridbloom</title>
+<style>
+  :root { --bg1:#222a52; --bg2:#0f1228; --text:#eef1ff; --dim:#9aa3d6; --accent:#ffd43b; --panel:#1b2042; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; margin: 0; }
+  body { background: radial-gradient(120% 90% at 50% 0%, var(--bg1), var(--bg2)); color: var(--text);
+         font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overscroll-behavior: none;
+         display: flex; flex-direction: column; align-items: center; user-select: none; -webkit-user-select: none; }
+  .app { width: 100%; max-width: 560px; height: 100%; display: flex; flex-direction: column;
+         padding: max(10px, env(safe-area-inset-top)) 12px max(8px, env(safe-area-inset-bottom)); }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 4px 10px; }
+  .stat { min-width: 0; }
+  .label { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); font-weight: 700; }
+  .num { font-size: 34px; font-weight: 800; line-height: 1.05; font-variant-numeric: tabular-nums; }
+  .best .num { font-size: 22px; color: var(--accent); }
+  .brand { font-weight: 800; letter-spacing: .02em; font-size: 15px; color: var(--dim); }
+  .icon { width: 44px; height: 44px; border-radius: 14px; border: 0; background: var(--panel); color: var(--text); display: grid; place-items: center; cursor: pointer; }
+  .icon:focus-visible, .btn:focus-visible, .skin:focus-visible, .switch:focus-visible, canvas:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  main { flex: 1; min-height: 0; display: flex; }
+  canvas { width: 100%; height: 100%; display: block; touch-action: none; border-radius: 16px; outline-offset: -3px; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .dlg { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; padding: 20px; background: rgba(5,6,20,.55); z-index: 5; }
+  .dlg.show { display: flex; animation: fade .18s ease-out; }
+  .card { width: min(380px, 100%); background: var(--panel); border-radius: 22px; padding: 24px; box-shadow: 0 20px 60px rgba(0,0,0,.45); text-align: center; animation: pop .22s ease-out; }
+  .card h2 { margin: 0 0 4px; font-size: 22px; }
+  .big { font-size: 56px; font-weight: 900; line-height: 1.1; font-variant-numeric: tabular-nums; margin: 6px 0 2px; }
+  .muted { color: var(--dim); } .badge { display: inline-block; background: var(--accent); color: #1a1a1a; font-weight: 800; padding: 2px 12px; border-radius: 99px; }
+  .stack { display: grid; gap: 10px; margin-top: 18px; }
+  .btn { border: 0; border-radius: 14px; padding: 14px 18px; font: inherit; font-weight: 800; cursor: pointer; background: color-mix(in srgb, var(--text) 12%, transparent); color: var(--text); min-height: 48px; }
+  .btn.primary { background: var(--accent); color: #1a1a1a; }
+  .btn[hidden] { display: none; }
+  .row { display: flex; align-items: center; justify-content: space-between; padding: 12px 2px; text-align: left; }
+  .row[hidden] { display: none; }
+  .switch { width: 54px; height: 32px; border-radius: 99px; border: 0; background: color-mix(in srgb, var(--text) 22%, transparent); position: relative; cursor: pointer; flex: none; }
+  .switch::after { content: ""; position: absolute; top: 4px; left: 4px; width: 24px; height: 24px; border-radius: 50%; background: var(--text); transition: transform .15s; }
+  .switch[aria-checked="true"] { background: var(--accent); }
+  .switch[aria-checked="true"]::after { transform: translateX(22px); background: #1a1a1a; }
+  #skins { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
+  .skin { display: flex; align-items: center; gap: 10px; border: 2px solid transparent; border-radius: 12px; padding: 10px; font: inherit; font-weight: 700; color: var(--text); background: color-mix(in srgb, var(--text) 10%, transparent); cursor: pointer; }
+  .skin.on { border-color: var(--accent); }
+  .sw { width: 22px; height: 22px; border-radius: 7px; flex: none; }
+  @keyframes fade { from { opacity: 0 } to { opacity: 1 } }
+  @keyframes pop { from { transform: scale(.94); opacity: 0 } to { transform: none; opacity: 1 } }
+  @media (prefers-reduced-motion: reduce) { .dlg.show, .card { animation: none; } .switch::after { transition: none; } }
+  @media (max-height: 560px) { .num { font-size: 26px; } .best .num { font-size: 18px; } header { padding-bottom: 4px; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="stat"><div class="label">Score</div><div class="num" id="score">0</div></div>
+    <div class="brand" aria-hidden="true">Gridbloom</div>
+    <div class="stat best" style="text-align:right"><div class="label">Best</div><div class="num" id="best">0</div></div>
+    <button class="icon" id="menu" aria-label="Settings" type="button">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+  </header>
+  <main><canvas id="stage" tabindex="0" aria-label="Game board. Drag a piece from the tray onto the 8 by 8 grid."></canvas></main>
+  <div class="sr" id="live" aria-live="polite"></div>
+</div>
+
+<div class="dlg" id="over" role="dialog" aria-modal="true" aria-labelledby="overTitle" aria-hidden="true">
+  <div class="card">
+    <h2 id="overTitle">No moves left</h2>
+    <div class="big" id="overScore">0</div>
+    <div id="overBest" class="muted">Best 0</div>
+    <div class="muted" id="overStats" style="margin-top:6px;font-size:14px"></div>
+    <div class="stack">
+      <button class="btn primary" id="again" type="button">Play again</button>
+      <button class="btn" id="rescue" type="button" hidden>Second chance</button>
+    </div>
+  </div>
+</div>
+
+<div class="dlg" id="settings" role="dialog" aria-modal="true" aria-labelledby="setTitle" aria-hidden="true">
+  <div class="card">
+    <h2 id="setTitle">Settings</h2>
+    <div class="row"><span>Sound</span><button class="switch" id="optSound" role="switch" aria-checked="true" aria-label="Sound" type="button"></button></div>
+    <div class="row" id="rowHaptics"><span>Vibration</span><button class="switch" id="optHaptics" role="switch" aria-checked="true" aria-label="Vibration" type="button"></button></div>
+    <div class="row" style="padding-bottom:0"><span>Theme</span></div>
+    <div id="skins"></div>
+    <div class="stack">
+      <button class="btn" id="restart" type="button">New game</button>
+      <button class="btn" id="resetBest" type="button">Reset best score</button>
+      <button class="btn" id="privacy" type="button" hidden>Privacy</button>
+      <button class="btn primary" id="closeSet" type="button">Back to game</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* Gridbloom engine: pure rules, no DOM, no clock. UMD so Node tests and the browser share it. */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.GB = factory();
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  var SIZE = 8;
+  var CELLS = SIZE * SIZE;
+  var TRAY = 3;
+  var COMBO_GRACE = 3;
+  var ALL_CLEAR_BONUS = 300;
+  var SAVE_VERSION = 1;
+  var MAX_RESCUES = 1;
+
+  // ---------- shapes (ASCII, '#' = filled) ----------
+  var RAW = {
+    dot: ['#'],
+    h2: ['##'], v2: ['#', '#'],
+    h3: ['###'], v3: ['#', '#', '#'],
+    h4: ['####'], v4: ['#', '#', '#', '#'],
+    h5: ['#####'], v5: ['#', '#', '#', '#', '#'],
+    sq2: ['##', '##'],
+    sq3: ['###', '###', '###'],
+    r23: ['###', '###'], r32: ['##', '##', '##'],
+    // small L (3 cells), 4 rotations
+    l3a: ['#.', '##'], l3b: ['.#', '##'], l3c: ['##', '#.'], l3d: ['##', '.#'],
+    // big L (5 cells), 4 rotations
+    l5a: ['#..', '#..', '###'], l5b: ['..#', '..#', '###'],
+    l5c: ['###', '#..', '#..'], l5d: ['###', '..#', '..#'],
+    // L tetromino, both hands, 4 rotations each
+    lt1: ['#.', '#.', '##'], lt2: ['.#', '.#', '##'],
+    lt3: ['##', '#.', '#.'], lt4: ['##', '.#', '.#'],
+    lt5: ['###', '#..'], lt6: ['###', '..#'],
+    lt7: ['#..', '###'], lt8: ['..#', '###'],
+    // T tetromino, 4 rotations
+    t1: ['###', '.#.'], t2: ['.#.', '###'], t3: ['#.', '##', '#.'], t4: ['.#', '##', '.#'],
+    // S / Z
+    s1: ['.##', '##.'], z1: ['##.', '.##'], s2: ['#.', '##', '.#'], z2: ['.#', '##', '#.']
+  };
+
+  // weight class: 0 easy, 1 medium, 2 hard (hard pieces grow more likely as score rises)
+  var CLASS = {
+    dot: 0, h2: 0, v2: 0, l3a: 0, l3b: 0, l3c: 0, l3d: 0, sq2: 0, h3: 0, v3: 0,
+    h4: 1, v4: 1, r23: 1, r32: 1, lt1: 1, lt2: 1, lt3: 1, lt4: 1, lt5: 1, lt6: 1, lt7: 1, lt8: 1,
+    t1: 1, t2: 1, t3: 1, t4: 1, s1: 1, z1: 1, s2: 1, z2: 1,
+    h5: 2, v5: 2, sq3: 2, l5a: 2, l5b: 2, l5c: 2, l5d: 2
+  };
+  var SMALL_IDS = ['dot', 'h2', 'v2', 'sq2', 'l3a', 'l3b', 'l3c', 'l3d'];
+
+  var SHAPES = {};
+  var SHAPE_IDS = [];
+  Object.keys(RAW).forEach(function (id, i) {
+    var rows = RAW[id], cells = [];
+    for (var r = 0; r < rows.length; r++)
+      for (var c = 0; c < rows[r].length; c++)
+        if (rows[r][c] === '#') cells.push([r, c]);
+    SHAPES[id] = {
+      id: id, cells: cells, h: rows.length, w: rows[0].length,
+      size: cells.length, cls: CLASS[id], color: (i % 7) + 1
+    };
+    SHAPE_IDS.push(id);
+  });
+  var COLOR_COUNT = 7;
+
+  // ---------- seeded rng (mulberry32, state is one integer so it can be saved) ----------
+  function Rng(seed) { this.s = (seed >>> 0) || 1; }
+  Rng.prototype.next = function () {
+    this.s = (this.s + 0x6D2B79F5) >>> 0;
+    var t = this.s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  Rng.prototype.int = function (n) { return Math.floor(this.next() * n); };
+
+  // ---------- board helpers (board = Uint8Array(64), 0 empty, 1..7 colour) ----------
+  function emptyBoard() { return new Uint8Array(CELLS); }
+
+  function canPlace(board, shape, r0, c0) {
+    for (var i = 0; i < shape.cells.length; i++) {
+      var r = r0 + shape.cells[i][0], c = c0 + shape.cells[i][1];
+      if (r < 0 || c < 0 || r >= SIZE || c >= SIZE) return false;
+      if (board[r * SIZE + c] !== 0) return false;
+    }
+    return true;
+  }
+
+  function placements(board, shape) {
+    var out = [];
+    for (var r = 0; r <= SIZE - shape.h; r++)
+      for (var c = 0; c <= SIZE - shape.w; c++)
+        if (canPlace(board, shape, r, c)) out.push([r, c]);
+    return out;
+  }
+
+  function canPlaceAnywhere(board, shape) {
+    for (var r = 0; r <= SIZE - shape.h; r++)
+      for (var c = 0; c <= SIZE - shape.w; c++)
+        if (canPlace(board, shape, r, c)) return true;
+    return false;
+  }
+
+  // Which rows/cols would be full after placing (no mutation). Used for the preview.
+  function previewClears(board, shape, r0, c0) {
+    var tmp = board.slice();
+    for (var i = 0; i < shape.cells.length; i++)
+      tmp[(r0 + shape.cells[i][0]) * SIZE + (c0 + shape.cells[i][1])] = shape.color;
+    return fullLines(tmp);
+  }
+
+  function fullLines(b) {
+    var rows = [], cols = [], r, c, ok;
+    for (r = 0; r < SIZE; r++) {
+      ok = true;
+      for (c = 0; c < SIZE; c++) if (b[r * SIZE + c] === 0) { ok = false; break; }
+      if (ok) rows.push(r);
+    }
+    for (c = 0; c < SIZE; c++) {
+      ok = true;
+      for (r = 0; r < SIZE; r++) if (b[r * SIZE + c] === 0) { ok = false; break; }
+      if (ok) cols.push(c);
+    }
+    return { rows: rows, cols: cols };
+  }
+
+  // Place a shape and clear every full row and column at once.
+  function placeAndClear(board, shape, r0, c0) {
+    var b = board.slice(), i;
+    for (i = 0; i < shape.cells.length; i++)
+      b[(r0 + shape.cells[i][0]) * SIZE + (c0 + shape.cells[i][1])] = shape.color;
+    var lines = fullLines(b);
+    var cleared = []; // [index, colour] so the UI can animate what vanished
+    var seen = {};
+    function wipe(idx) {
+      if (seen[idx]) return;
+      seen[idx] = true;
+      cleared.push([idx, b[idx]]);
+    }
+    var r, c;
+    lines.rows.forEach(function (row) { for (c = 0; c < SIZE; c++) wipe(row * SIZE + c); });
+    lines.cols.forEach(function (col) { for (r = 0; r < SIZE; r++) wipe(r * SIZE + col); });
+    cleared.forEach(function (e) { b[e[0]] = 0; });
+    var empty = true;
+    for (i = 0; i < CELLS; i++) if (b[i] !== 0) { empty = false; break; }
+    return {
+      board: b, rows: lines.rows, cols: lines.cols,
+      lines: lines.rows.length + lines.cols.length,
+      cleared: cleared, allClear: empty
+    };
+  }
+
+  // ---------- scoring ----------
+  function lineBase(n) { return n <= 0 ? 0 : (10 * n * (n + 1)) / 2; }
+
+  function scorePlacement(cells, lines, allClear, streak, since) {
+    if (lines === 0) {
+      var s = since + 1;
+      return {
+        placement: cells, line: 0, combo: 0, allClear: 0,
+        streak: s >= COMBO_GRACE ? 0 : streak, since: s,
+        total: cells
+      };
+    }
+    var ns = streak + 1;
+    var line = lineBase(lines);
+    var combo = ns >= 2 ? (ns - 1) * 10 * lines : 0;
+    var ac = allClear ? ALL_CLEAR_BONUS : 0;
+    return {
+      placement: cells, line: line, combo: combo, allClear: ac,
+      streak: ns, since: 0, total: cells + line + combo + ac
+    };
+  }
+
+  // ---------- generator ----------
+  function weightFor(shape, score) {
+    var t = Math.min(1, score / 4000); // difficulty ramp 0..1
+    var base = shape.cls === 0 ? 1.0 - 0.4 * t : shape.cls === 1 ? 1.0 : 0.35 + 0.9 * t;
+    return base;
+  }
+
+  function pickShape(rng, score, pool) {
+    var ids = pool || SHAPE_IDS, total = 0, ws = [], i;
+    for (i = 0; i < ids.length; i++) { var w = weightFor(SHAPES[ids[i]], score); ws.push(w); total += w; }
+    var x = rng.next() * total;
+    for (i = 0; i < ids.length; i++) { x -= ws[i]; if (x <= 0) return ids[i]; }
+    return ids[ids.length - 1];
+  }
+
+  // Is there some order of the tray where every piece can be placed in turn? (clears simulated)
+  // The search has a node budget; if it runs out we give the tray the benefit of the doubt.
+  function solvable(board, trayIds, budget) {
+    var nodes = { n: budget || 12000 };
+    var pieces = trayIds.filter(Boolean).map(function (id) { return SHAPES[id]; });
+    if (pieces.length === 0) return true;
+
+    function dfs(b, remaining) {
+      if (remaining.length === 0) return true;
+      if (nodes.n <= 0) return true;
+      for (var i = 0; i < remaining.length; i++) {
+        var sh = remaining[i];
+        var rest = remaining.slice(0, i).concat(remaining.slice(i + 1));
+        for (var r = 0; r <= SIZE - sh.h; r++) {
+          for (var c = 0; c <= SIZE - sh.w; c++) {
+            if (!canPlace(b, sh, r, c)) continue;
+            nodes.n--;
+            if (nodes.n <= 0) return true;
+            var out = placeAndClear(b, sh, r, c);
+            if (dfs(out.board, rest)) return true;
+          }
+        }
+      }
+      return false;
+    }
+    return dfs(board, pieces);
+  }
+
+  function nextTray(rng, board, score) {
+    var tries = 40, best = null, i, j;
+    for (i = 0; i < tries; i++) {
+      var tray = [];
+      for (j = 0; j < TRAY; j++) tray.push(pickShape(rng, score));
+      var allFit = tray.every(function (id) { return canPlaceAnywhere(board, SHAPES[id]); });
+      if (!allFit) continue;
+      if (solvable(board, tray)) return tray;
+      if (!best) best = tray;
+    }
+    if (best) return best;
+    // Fallback: small pieces only, and prefer ones that fit.
+    var small = [];
+    for (j = 0; j < TRAY; j++) small.push(pickShape(rng, 0, SMALL_IDS));
+    return small;
+  }
+
+  function hasAnyMove(board, tray) {
+    for (var i = 0; i < tray.length; i++)
+      if (tray[i] && canPlaceAnywhere(board, SHAPES[tray[i]])) return true;
+    return false;
+  }
+
+  // ---------- game ----------
+  function Game(seed) { this.newGame(seed); }
+
+  Game.prototype.newGame = function (seed) {
+    if (seed === undefined) seed = (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0;
+    this.seed = seed >>> 0;
+    this.rng = new Rng(this.seed);
+    this.board = emptyBoard();
+    this.score = 0;
+    this.streak = 0;
+    this.since = 0;
+    this.rescues = 0;
+    this.over = false;
+    this.moves = 0;
+    this.linesTotal = 0;
+    this.tray = nextTray(this.rng, this.board, 0);
+  };
+
+  // submit(trayIndex, row, col) -> result. Never throws on bad input; returns ok:false with a reason.
+  Game.prototype.submit = function (index, r, c) {
+    if (this.over) return { ok: false, reason: 'over' };
+    if (!(index >= 0 && index < TRAY) || !this.tray[index]) return { ok: false, reason: 'no-piece' };
+    var shape = SHAPES[this.tray[index]];
+    if (!canPlace(this.board, shape, r, c)) return { ok: false, reason: 'blocked' };
+
+    var out = placeAndClear(this.board, shape, r, c);
+    var sc = scorePlacement(shape.size, out.lines, out.allClear, this.streak, this.since);
+    this.board = out.board;
+    this.score += sc.total;
+    this.streak = sc.streak;
+    this.since = sc.since;
+    this.moves++;
+    this.linesTotal += out.lines;
+    this.tray[index] = null;
+
+    var newTray = false;
+    if (this.tray.every(function (t) { return t === null; })) {
+      this.tray = nextTray(this.rng, this.board, this.score);
+      newTray = true;
+    }
+    this.over = !hasAnyMove(this.board, this.tray);
+    return {
+      ok: true, shape: shape, row: r, col: c, rows: out.rows, cols: out.cols,
+      lines: out.lines, cleared: out.cleared, allClear: out.allClear,
+      score: sc, newTray: newTray, over: this.over
+    };
+  };
+
+  Game.prototype.canRescue = function () { return this.over && this.rescues < MAX_RESCUES; };
+
+  // Clear the central 4x4 block and deal three small pieces. Returns false if not allowed.
+  Game.prototype.rescue = function () {
+    if (!this.canRescue()) return false;
+    for (var r = 2; r <= 5; r++) for (var c = 2; c <= 5; c++) this.board[r * SIZE + c] = 0;
+    var t = [];
+    for (var i = 0; i < TRAY; i++) t.push(pickShape(this.rng, 0, SMALL_IDS));
+    this.tray = t;
+    this.rescues++;
+    this.over = !hasAnyMove(this.board, this.tray);
+    return true;
+  };
+
+  Game.prototype.serialize = function () {
+    return JSON.stringify({
+      v: SAVE_VERSION, seed: this.seed, rng: this.rng.s, board: Array.prototype.slice.call(this.board),
+      tray: this.tray, score: this.score, streak: this.streak, since: this.since,
+      rescues: this.rescues, over: this.over, moves: this.moves, lines: this.linesTotal
+    });
+  };
+
+  // Returns a Game, or null if the data is missing, old or damaged. Never throws.
+  Game.restore = function (json) {
+    try {
+      var d = typeof json === 'string' ? JSON.parse(json) : json;
+      if (!d || d.v !== SAVE_VERSION) return null;
+      if (!Array.isArray(d.board) || d.board.length !== CELLS) return null;
+      if (!Array.isArray(d.tray) || d.tray.length !== TRAY) return null;
+      for (var i = 0; i < CELLS; i++) {
+        var v = d.board[i];
+        if (!(v === 0 || (v >= 1 && v <= COLOR_COUNT && v === (v | 0)))) return null;
+      }
+      for (var j = 0; j < TRAY; j++) if (d.tray[j] !== null && !SHAPES[d.tray[j]]) return null;
+      var g = new Game(d.seed);
+      g.rng = new Rng(1); g.rng.s = d.rng >>> 0;
+      g.board = Uint8Array.from(d.board);
+      g.tray = d.tray.slice();
+      g.score = Math.max(0, d.score | 0);
+      g.streak = Math.max(0, d.streak | 0);
+      g.since = Math.max(0, d.since | 0);
+      g.rescues = Math.max(0, d.rescues | 0);
+      g.moves = Math.max(0, d.moves | 0);
+      g.linesTotal = Math.max(0, d.lines | 0);
+      g.over = !!d.over;
+      return g;
+    } catch (e) { return null; }
+  };
+
+  return {
+    SIZE: SIZE, CELLS: CELLS, TRAY: TRAY, COMBO_GRACE: COMBO_GRACE, ALL_CLEAR_BONUS: ALL_CLEAR_BONUS,
+    COLOR_COUNT: COLOR_COUNT, SHAPES: SHAPES, SHAPE_IDS: SHAPE_IDS, SMALL_IDS: SMALL_IDS,
+    Rng: Rng, Game: Game, emptyBoard: emptyBoard, canPlace: canPlace, canPlaceAnywhere: canPlaceAnywhere,
+    placements: placements, previewClears: previewClears, placeAndClear: placeAndClear, fullLines: fullLines,
+    lineBase: lineBase, scorePlacement: scorePlacement, nextTray: nextTray, solvable: solvable,
+    hasAnyMove: hasAnyMove
+  };
+});
+
+</script>
+<script>
+/* Gridbloom UI: canvas rendering, drag, effects, sound, haptics, storage. Rules live in engine.js only. */
+(function () {
+  'use strict';
+  var GB = window.GB;
+  var SIZE = GB.SIZE, SHAPES = GB.SHAPES;
+
+  // ---------- storage (every access guarded: private mode / blocked storage must not break play) ----------
+  var store = {
+    get: function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set: function (k, v) { try { localStorage.setItem(k, v); } catch (e) { /* ignore */ } },
+    del: function (k) { try { localStorage.removeItem(k); } catch (e) { /* ignore */ } }
+  };
+
+  // ---------- skins (own palettes) ----------
+  var SKINS = [
+    { id: 'bloom', name: 'Bloom', bg1: '#222a52', bg2: '#0f1228', board: '#171b38', empty: '#222850', text: '#eef1ff', dim: '#9aa3d6', accent: '#ffd43b', panel: '#1b2042',
+      blocks: ['#ff6b8b', '#ffa14a', '#ffd43b', '#5fd97a', '#44d1e6', '#6b8cff', '#b57cff'] },
+    { id: 'dusk', name: 'Dusk', bg1: '#2b1b3a', bg2: '#140c1d', board: '#1d1229', empty: '#2b1c3d', text: '#fbeeff', dim: '#b9a0cc', accent: '#ff9ecb', panel: '#24162f',
+      blocks: ['#ff7aa8', '#ff9a5c', '#ffd166', '#7be0a1', '#5cc8ff', '#8e8bff', '#d38cff'] },
+    { id: 'mint', name: 'Mint', bg1: '#e9f8f1', bg2: '#cfeee0', board: '#ffffff', empty: '#e4f3ec', text: '#173b2f', dim: '#4f7a6a', accent: '#d4572a', panel: '#f6fffa',
+      blocks: ['#e8506f', '#f0883a', '#e6b800', '#2fb86b', '#1ba7c4', '#4b6fe0', '#8d5be0'] },
+    { id: 'slate', name: 'Slate', bg1: '#2a2f36', bg2: '#15181c', board: '#1c2025', empty: '#272c33', text: '#eef2f6', dim: '#98a3b0', accent: '#7be0d4', panel: '#21262c',
+      blocks: ['#e07a7a', '#e0a37a', '#e0d27a', '#8fd18f', '#7ac7e0', '#8a9be0', '#b88ae0'] }
+  ];
+
+  var settings = { sound: true, haptics: true, skin: 'bloom' };
+  (function loadSettings() {
+    var raw = store.get('gb.settings');
+    if (!raw) return;
+    try {
+      var s = JSON.parse(raw);
+      if (typeof s.sound === 'boolean') settings.sound = s.sound;
+      if (typeof s.haptics === 'boolean') settings.haptics = s.haptics;
+      if (SKINS.some(function (k) { return k.id === s.skin; })) settings.skin = s.skin;
+    } catch (e) { /* use defaults */ }
+  })();
+  function saveSettings() { store.set('gb.settings', JSON.stringify(settings)); }
+  function skin() { for (var i = 0; i < SKINS.length; i++) if (SKINS[i].id === settings.skin) return SKINS[i]; return SKINS[0]; }
+
+  var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---------- sound (WebAudio synth, no files) ----------
+  var audio = { ctx: null };
+  function ensureAudio() {
+    if (audio.ctx || !settings.sound) return;
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) audio.ctx = new AC();
+    } catch (e) { audio.ctx = null; }
+  }
+  function tone(freq, start, dur, type, vol) {
+    var ctx = audio.ctx;
+    if (!ctx || !settings.sound) return;
+    try {
+      var t0 = ctx.currentTime + start;
+      var o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = type || 'sine';
+      o.frequency.setValueAtTime(freq, t0);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(vol || 0.12, t0 + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(t0); o.stop(t0 + dur + 0.03);
+    } catch (e) { /* ignore */ }
+  }
+  var NOTES = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5, 1174.66, 1318.5];
+  var sfx = {
+    pick: function () { tone(440, 0, 0.06, 'triangle', 0.06); },
+    place: function (size) { tone(220 + size * 18, 0, 0.09, 'triangle', 0.14); },
+    deny: function () { tone(150, 0, 0.12, 'sawtooth', 0.06); },
+    clear: function (lines, streak) {
+      var n = Math.min(NOTES.length - 1, lines + Math.min(streak, 3));
+      for (var i = 0; i <= Math.min(n, 5); i++) tone(NOTES[i], i * 0.055, 0.2, 'sine', 0.13);
+    },
+    allClear: function () { for (var i = 0; i < NOTES.length; i++) tone(NOTES[i], i * 0.06, 0.28, 'triangle', 0.13); },
+    over: function () { [392, 330, 262, 196].forEach(function (f, i) { tone(f, i * 0.16, 0.3, 'sine', 0.13); }); },
+    rescue: function () { [262, 330, 392, 523].forEach(function (f, i) { tone(f, i * 0.07, 0.18, 'triangle', 0.12); }); }
+  };
+  function buzz(p) { if (settings.haptics && navigator.vibrate) { try { navigator.vibrate(p); } catch (e) { /* ignore */ } } }
+
+  // ---------- state ----------
+  var best = parseInt(store.get('gb.best') || '0', 10) || 0;
+  var game = GB.Game.restore(store.get('gb.save'));
+  if (!game || game.over) game = new GB.Game();
+  var startBest = best;
+
+  function persist() {
+    if (game.over) store.del('gb.save'); else store.set('gb.save', game.serialize());
+  }
+
+  // ---------- dom ----------
+  var $ = function (id) { return document.getElementById(id); };
+  var canvas = $('stage'), ctx = canvas.getContext('2d');
+  var elScore = $('score'), elBest = $('best'), elLive = $('live');
+  var dlgOver = $('over'), dlgSet = $('settings');
+
+  // ---------- layout ----------
+  var L = { w: 0, h: 0, dpr: 1, cell: 40, bx: 0, by: 0, bsize: 320, tcell: 20, slots: [] };
+  function layout() {
+    var r = canvas.getBoundingClientRect();
+    L.dpr = Math.min(window.devicePixelRatio || 1, 3);
+    L.w = Math.max(240, r.width); L.h = Math.max(300, r.height);
+    canvas.width = Math.round(L.w * L.dpr); canvas.height = Math.round(L.h * L.dpr);
+    var pad = Math.max(10, Math.min(20, L.w * 0.04)), i;
+    L.slots = [];
+    if (L.w > L.h * 1.25) {
+      // landscape: board on the left, tray stacked on the right
+      var bs2 = Math.min(L.h - pad * 1.4, L.w * 0.56);
+      L.cell = Math.max(18, Math.floor(bs2 / SIZE)); L.bsize = L.cell * SIZE;
+      var trayW = Math.max(L.cell * 4.2, Math.min(L.w * 0.3, L.cell * 6));
+      var total = L.bsize + pad * 2 + trayW, left = Math.max(pad, (L.w - total) / 2);
+      L.bx = Math.round(left); L.by = Math.round((L.h - L.bsize) / 2);
+      var slotH = L.bsize / 3, tx = L.bx + L.bsize + pad * 2;
+      L.tcell = Math.max(10, Math.min(L.cell * 0.55, trayW / 5.4, slotH / 5.4));
+      for (i = 0; i < 3; i++) L.slots.push({ x: tx, y: L.by + slotH * i, w: trayW, h: slotH, cx: tx + trayW / 2, cy: L.by + slotH * (i + 0.5) });
+    } else {
+      // portrait: board on top, tray right under it, the pair centred vertically
+      var gap = pad * 0.9;
+      var trayMin = Math.max(88, L.w * 0.27);
+      var bs = Math.min(L.w - pad * 2, L.h - trayMin - gap - pad);
+      L.cell = Math.max(18, Math.floor(bs / SIZE)); L.bsize = L.cell * SIZE;
+      var slotW = (L.w - pad * 2) / 3;
+      L.tcell = Math.max(10, Math.min(L.cell * 0.66, slotW / 5.4));
+      var trayH = Math.min(L.h - L.bsize - gap - pad, Math.max(L.tcell * 5.6, L.cell * 3.8));
+      var group = L.bsize + gap + trayH;
+      L.bx = Math.round((L.w - L.bsize) / 2);
+      L.by = Math.round(Math.max(pad * 0.6, (L.h - group) * 0.38));
+      var trayTop = L.by + L.bsize + gap;
+      for (i = 0; i < 3; i++) L.slots.push({ x: pad + slotW * i, y: trayTop, w: slotW, h: trayH, cx: pad + slotW * (i + 0.5), cy: trayTop + trayH / 2 });
+    }
+    draw();
+  }
+
+  // ---------- colour helpers ----------
+  function shade(hex, amt) {
+    var n = parseInt(hex.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255;
+    function f(v) { return Math.max(0, Math.min(255, Math.round(amt >= 0 ? v + (255 - v) * amt : v * (1 + amt)))); }
+    return 'rgb(' + f(r) + ',' + f(g) + ',' + f(b) + ')';
+  }
+  function rr(c, x, y, w, h, r) {
+    r = Math.min(r, w / 2, h / 2);
+    c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r);
+    c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath();
+  }
+  function drawBlock(c, x, y, s, color, alpha, scale) {
+    var sc = scale === undefined ? 1 : scale;
+    if (sc <= 0.01 || alpha <= 0) return;
+    var m = s * (1 - sc) / 2, g = Math.max(1, s * 0.05);
+    var bx = x + g + m, by = y + g + m, bw = (s - g * 2) * sc, bh = bw;
+    c.globalAlpha = alpha;
+    c.fillStyle = shade(color, -0.28); rr(c, bx, by + bh * 0.08, bw, bh, bw * 0.24); c.fill();
+    c.fillStyle = color; rr(c, bx, by, bw, bh * 0.94, bw * 0.24); c.fill();
+    var gr = c.createLinearGradient(0, by, 0, by + bh);
+    gr.addColorStop(0, 'rgba(255,255,255,0.38)'); gr.addColorStop(0.5, 'rgba(255,255,255,0)');
+    c.fillStyle = gr; rr(c, bx, by, bw, bh * 0.94, bw * 0.24); c.fill();
+    c.globalAlpha = 1;
+  }
+  function blockColor(id) { var sk = skin(); return sk.blocks[(id - 1) % sk.blocks.length]; }
+
+  // ---------- effects ----------
+  var fx = { pops: [], clears: [], parts: [], floats: [], toasts: [], trayIn: [0, 0, 0], shake: 0, shakeT: 0 };
+  var now = function () { return performance.now(); };
+  var shownScore = game.score;
+  var overTimer = 0;
+
+  function spawnClearFx(res, cx, cy) {
+    var t = now();
+    res.cleared.forEach(function (e) {
+      var i = e[0], r = Math.floor(i / SIZE), c = i % SIZE;
+      var d = Math.abs(r - cy) + Math.abs(c - cx);
+      fx.clears.push({ r: r, c: c, color: e[1], t0: t + d * 18, dur: 300 });
+      var n = reduceMotion ? 0 : 3;
+      for (var k = 0; k < n; k++) {
+        var a = Math.random() * Math.PI * 2, sp = 40 + Math.random() * 110;
+        fx.parts.push({ x: L.bx + (c + 0.5) * L.cell, y: L.by + (r + 0.5) * L.cell, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 40, t0: t + d * 18, dur: 520, color: e[1], s: L.cell * (0.1 + Math.random() * 0.1) });
+      }
+    });
+  }
+  function addFloat(text, x, y, color) { fx.floats.push({ text: text, x: x, y: y, t0: now(), dur: 900, color: color }); }
+  function addToast(text, color) { fx.toasts.push({ text: text, t0: now(), dur: 1100, color: color }); }
+  function shake(amount) { if (reduceMotion) return; fx.shake = amount; fx.shakeT = now(); }
+
+  // ---------- drag ----------
+  var drag = null; // {i, px, py, type, grabDX}
+  function pieceBox(shape, cellSize) { return { w: shape.w * cellSize, h: shape.h * cellSize }; }
+  function dragOrigin() {
+    var shape = SHAPES[game.tray[drag.i]], b = pieceBox(shape, L.cell);
+    var lift = drag.type === 'touch' ? L.cell * 1.7 : L.cell * 0.4;
+    return { x: drag.px - b.w / 2, y: drag.py - b.h / 2 - lift, shape: shape };
+  }
+  // Find the legal anchor nearest to where the piece actually is; null if none within ~1 cell.
+  function snapTarget() {
+    var o = dragOrigin(), fc = (o.x - L.bx) / L.cell, fr = (o.y - L.by) / L.cell;
+    var best = null, bd = 1e9;
+    for (var dr = -1; dr <= 1; dr++) for (var dc = -1; dc <= 1; dc++) {
+      var r = Math.round(fr) + dr, c = Math.round(fc) + dc;
+      if (!GB.canPlace(game.board, o.shape, r, c)) continue;
+      var d = Math.hypot(r - fr, c - fc);
+      if (d < bd) { bd = d; best = { r: r, c: c }; }
+    }
+    return bd <= 0.95 ? best : null;
+  }
+  function pos(e) { var r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+
+  canvas.addEventListener('pointerdown', function (e) {
+    if (drag || game.over || dlgOpen()) return;
+    var p = pos(e);
+    for (var i = 0; i < 3; i++) {
+      var s = L.slots[i];
+      if (game.tray[i] && p.x >= s.x && p.x <= s.x + s.w && p.y >= s.y - L.cell * 0.4 && p.y <= s.y + s.h + L.cell * 0.4) {
+        ensureAudio();
+        drag = { i: i, px: p.x, py: p.y, type: e.pointerType === 'mouse' ? 'mouse' : 'touch' };
+        try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+        sfx.pick(); buzz(8); requestDraw(); e.preventDefault();
+        return;
+      }
+    }
+  });
+  canvas.addEventListener('pointermove', function (e) { if (!drag) return; var p = pos(e); drag.px = p.x; drag.py = p.y; requestDraw(); e.preventDefault(); });
+  function endDrag(e, cancelled) {
+    if (!drag) return;
+    var p = pos(e); drag.px = p.x; drag.py = p.y;
+    var tgt = cancelled ? null : snapTarget(), i = drag.i;
+    drag = null;
+    if (tgt) place(i, tgt.r, tgt.c); else { sfx.deny(); }
+    requestDraw();
+  }
+  canvas.addEventListener('pointerup', function (e) { endDrag(e, false); });
+  canvas.addEventListener('pointercancel', function (e) { endDrag(e, true); });
+
+  // ---------- one move ----------
+  function place(i, r, c) {
+    var res = game.submit(i, r, c);
+    if (!res.ok) { sfx.deny(); return; }
+    var t = now(), sh = res.shape;
+    sh.cells.forEach(function (q) { fx.pops.push({ r: r + q[0], c: c + q[1], t0: t, dur: 180 }); });
+    sfx.place(sh.size);
+    if (res.lines > 0) {
+      spawnClearFx(res, c + sh.w / 2, r + sh.h / 2);
+      if (res.allClear) sfx.allClear(); else sfx.clear(res.lines, game.streak);
+      buzz(res.lines > 1 ? [18, 30, 18] : 16);
+      var gained = res.score.total;
+      addFloat('+' + gained, L.bx + L.bsize / 2, L.by + L.bsize / 2, skin().accent);
+      if (res.allClear) { addToast('ALL CLEAR +' + GB.ALL_CLEAR_BONUS, skin().accent); shake(10); }
+      else if (res.score.streak >= 2) addToast('Combo x' + res.score.streak, skin().accent);
+      else if (res.lines >= 3) addToast(res.lines >= 4 ? 'Incredible!' : 'Great!', skin().accent);
+      if (res.lines >= 3) shake(6);
+    }
+    if (res.newTray) { var tt = now(); fx.trayIn = [tt, tt + 70, tt + 140]; }
+    if (game.score > best) { best = game.score; store.set('gb.best', String(best)); }
+    elLive.textContent = 'Score ' + game.score;
+    persist();
+    if (res.over) {
+      clearTimeout(overTimer);
+      overTimer = setTimeout(showOver, res.lines > 0 ? 650 : 350);
+    }
+    requestDraw();
+  }
+
+  // ---------- drawing ----------
+  var needDraw = false, rafId = 0;
+  function requestDraw() { if (!rafId) rafId = requestAnimationFrame(frame); }
+  function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
+
+  function frame() {
+    rafId = 0;
+    var busy = draw();
+    if (busy) requestDraw();
+  }
+
+  function draw() {
+    var sk = skin(), c = ctx, t = now(), busy = false;
+    c.setTransform(L.dpr, 0, 0, L.dpr, 0, 0);
+    c.clearRect(0, 0, L.w, L.h);
+
+    // screen shake
+    var sx = 0, sy = 0;
+    if (fx.shake > 0) {
+      var k = (t - fx.shakeT) / 260;
+      if (k < 1) { var a = fx.shake * (1 - k); sx = (Math.random() - 0.5) * a; sy = (Math.random() - 0.5) * a; busy = true; } else fx.shake = 0;
+    }
+    c.save(); c.translate(sx, sy);
+
+    // board panel
+    c.fillStyle = sk.board; rr(c, L.bx - 6, L.by - 6, L.bsize + 12, L.bsize + 12, 14); c.fill();
+    var tgt = drag ? snapTarget() : null, o = drag ? dragOrigin() : null;
+    var prev = null;
+    if (tgt) prev = GB.previewClears(game.board, o.shape, tgt.r, tgt.c);
+    var hot = {};
+    if (prev) { prev.rows.forEach(function (r) { for (var cc = 0; cc < SIZE; cc++) hot[r * SIZE + cc] = 1; }); prev.cols.forEach(function (cc) { for (var r = 0; r < SIZE; r++) hot[r * SIZE + cc] = 1; }); }
+    var ghost = {};
+    if (tgt) o.shape.cells.forEach(function (q) { ghost[(tgt.r + q[0]) * SIZE + (tgt.c + q[1])] = 1; });
+
+    var popMap = {};
+    fx.pops = fx.pops.filter(function (p) { var k = (t - p.t0) / p.dur; if (k >= 1) return false; popMap[p.r * SIZE + p.c] = k; busy = true; return true; });
+
+    for (var r = 0; r < SIZE; r++) for (var cc = 0; cc < SIZE; cc++) {
+      var i = r * SIZE + cc, x = L.bx + cc * L.cell, y = L.by + r * L.cell;
+      c.fillStyle = sk.empty; rr(c, x + 1.5, y + 1.5, L.cell - 3, L.cell - 3, L.cell * 0.2); c.fill();
+      var v = game.board[i];
+      if (v) {
+        var sc = 1;
+        if (popMap[i] !== undefined) sc = 1 + 0.18 * Math.sin(Math.PI * popMap[i]);
+        drawBlock(c, x, y, L.cell, blockColor(v), 1, sc);
+        if (hot[i]) { c.globalAlpha = 0.35 + 0.15 * Math.sin(t / 90); c.fillStyle = '#fff'; rr(c, x + 2, y + 2, L.cell - 4, L.cell - 4, L.cell * 0.2); c.fill(); c.globalAlpha = 1; busy = true; }
+      } else if (ghost[i]) {
+        drawBlock(c, x, y, L.cell, blockColor(o.shape.color), 0.45, 1);
+      }
+    }
+    if (prev) { // lines that would clear: tint empty-but-ghost cells too
+      c.globalAlpha = 0.18; c.fillStyle = sk.accent;
+      Object.keys(hot).forEach(function (k2) { var q = +k2; if (!game.board[q]) { c.fillRect(L.bx + (q % SIZE) * L.cell + 2, L.by + Math.floor(q / SIZE) * L.cell + 2, L.cell - 4, L.cell - 4); } });
+      c.globalAlpha = 1;
+    }
+
+    // clearing cells (already gone from the board, drawn shrinking)
+    fx.clears = fx.clears.filter(function (e) {
+      var k = (t - e.t0) / e.dur; if (k >= 1) return false; busy = true;
+      if (k < 0) { drawBlock(c, L.bx + e.c * L.cell, L.by + e.r * L.cell, L.cell, blockColor(e.color), 1, 1); return true; }
+      var f = easeOut(k);
+      c.globalAlpha = 1 - f; c.fillStyle = '#fff';
+      var s = L.cell * (1 - f * 0.4); rr(c, L.bx + e.c * L.cell + (L.cell - s) / 2, L.by + e.r * L.cell + (L.cell - s) / 2, s, s, s * 0.22); c.fill(); c.globalAlpha = 1;
+      drawBlock(c, L.bx + e.c * L.cell, L.by + e.r * L.cell, L.cell, blockColor(e.color), 1 - f, 1 - f * 0.6);
+      return true;
+    });
+
+    // particles
+    fx.parts = fx.parts.filter(function (p) {
+      var k = (t - p.t0) / p.dur; if (k >= 1) return false; busy = true; if (k < 0) return true;
+      var tt = k * p.dur / 1000, x = p.x + p.vx * tt, y = p.y + p.vy * tt + 260 * tt * tt;
+      c.globalAlpha = 1 - k; c.fillStyle = blockColor(p.color); c.fillRect(x - p.s / 2, y - p.s / 2, p.s, p.s); c.globalAlpha = 1;
+      return true;
+    });
+
+    // tray
+    for (var s = 0; s < 3; s++) {
+      var id = game.tray[s]; if (!id) continue;
+      if (drag && drag.i === s) continue;
+      var sh = SHAPES[id], slot = L.slots[s];
+      var inK = Math.max(0, Math.min(1, (t - fx.trayIn[s]) / 260)); if (inK < 1) busy = true;
+      var playable = GB.canPlaceAnywhere(game.board, sh);
+      var tc = L.tcell, bw = sh.w * tc, bh = sh.h * tc;
+      var ox = slot.cx - bw / 2, oy = slot.cy - bh / 2 + (1 - easeOut(inK)) * 70;
+      sh.cells.forEach(function (q) { drawBlock(c, ox + q[1] * tc, oy + q[0] * tc, tc, blockColor(sh.color), (playable ? 1 : 0.32) * inK, 1); });
+    }
+
+    // dragged piece
+    if (drag) {
+      var od = dragOrigin();
+      od.shape.cells.forEach(function (q) { drawBlock(c, od.x + q[1] * L.cell, od.y + q[0] * L.cell, L.cell, blockColor(od.shape.color), 0.96, 1.04); });
+    }
+
+    // floating score
+    fx.floats = fx.floats.filter(function (f) {
+      var k = (t - f.t0) / f.dur; if (k >= 1) return false; busy = true;
+      c.globalAlpha = 1 - k * k; c.fillStyle = f.color; c.font = '800 ' + Math.round(L.cell * 0.75) + 'px system-ui, sans-serif';
+      c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(f.text, f.x, f.y - easeOut(k) * L.cell * 1.6); c.globalAlpha = 1; return true;
+    });
+    // toasts
+    fx.toasts = fx.toasts.filter(function (f) {
+      var k = (t - f.t0) / f.dur; if (k >= 1) return false; busy = true;
+      var sc = 0.7 + 0.5 * easeOut(Math.min(1, k * 4)), a = k < 0.7 ? 1 : 1 - (k - 0.7) / 0.3;
+      c.save(); c.globalAlpha = a; c.translate(L.bx + L.bsize / 2, L.by + L.bsize * 0.32 - k * 12); c.scale(sc, sc);
+      c.font = '900 ' + Math.round(L.cell * 1.05) + 'px system-ui, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.lineWidth = Math.max(3, L.cell * 0.14); c.strokeStyle = 'rgba(0,0,0,0.45)'; c.lineJoin = 'round'; c.strokeText(f.text, 0, 0);
+      c.fillStyle = f.color; c.fillText(f.text, 0, 0); c.restore(); return true;
+    });
+
+    // game over dim
+    if (game.over) { c.fillStyle = 'rgba(0,0,0,0.35)'; rr(c, L.bx - 6, L.by - 6, L.bsize + 12, L.bsize + 12, 14); c.fill(); }
+    c.restore();
+
+    // score count-up
+    if (shownScore !== game.score) {
+      var diff = game.score - shownScore;
+      shownScore += diff > 0 ? Math.max(1, Math.ceil(diff * 0.2)) : diff;
+      if (Math.abs(game.score - shownScore) < 1) shownScore = game.score;
+      busy = true;
+    }
+    elScore.textContent = String(shownScore);
+    elBest.textContent = String(Math.max(best, shownScore));
+    return busy;
+  }
+
+  // ---------- optional native host (Android WebView). Everything works without it. ----------
+  var native = window.GridbloomNative || null;
+  function nat(name, fallback) {
+    try { if (native && typeof native[name] === 'function') return native[name](); } catch (e) { /* ignore */ }
+    return fallback;
+  }
+  var pendingRescue = false;
+  window.__gbNative = {
+    rescueResult: function (granted) {
+      pendingRescue = false; $('rescue').disabled = false;
+      if (granted && game.rescue()) { sfx.rescue(); buzz(30); persist(); close(dlgOver); fx.trayIn = [now(), now() + 70, now() + 140]; requestDraw(); }
+    },
+    proceedNewGame: function () { newGame(); }
+  };
+
+  // ---------- dialogs ----------
+  function dlgOpen() { return dlgOver.classList.contains('show') || dlgSet.classList.contains('show'); }
+  function open(d) { d.classList.add('show'); d.removeAttribute('aria-hidden'); var b = d.querySelector('button'); if (b) b.focus(); }
+  function close(d) { d.classList.remove('show'); d.setAttribute('aria-hidden', 'true'); canvas.focus(); }
+
+  function showOver() {
+    sfx.over(); buzz([40, 60, 40]);
+    var isNew = game.score > startBest && game.score > 0;
+    $('overScore').textContent = String(game.score);
+    $('overBest').textContent = isNew ? 'New best!' : 'Best ' + best;
+    $('overBest').className = isNew ? 'badge' : 'muted';
+    $('overStats').textContent = game.linesTotal + ' lines · ' + game.moves + ' moves';
+    var canRescue = game.canRescue() && (!native || nat('isRewardedReady', false) === true);
+    $('rescue').hidden = !canRescue;
+    $('rescue').textContent = native ? 'Watch ad for a second chance' : 'Second chance';
+    nat('onGameOver');
+    open(dlgOver);
+  }
+  function newGame() {
+    clearTimeout(overTimer);
+    game = new GB.Game();
+    startBest = best; shownScore = 0;
+    fx = { pops: [], clears: [], parts: [], floats: [], toasts: [], trayIn: [now(), now() + 70, now() + 140], shake: 0, shakeT: 0 };
+    persist(); elLive.textContent = 'New game. Score 0';
+    close(dlgOver); close(dlgSet); requestDraw();
+  }
+  $('again').addEventListener('click', function () {
+    if (native && typeof native.beforeNewGame === 'function') { try { native.beforeNewGame(); return; } catch (e) { /* fall through */ } }
+    newGame();
+  });
+  $('rescue').addEventListener('click', function () {
+    if (native) {
+      if (pendingRescue) return;
+      pendingRescue = true; $('rescue').disabled = true;
+      try { native.requestRescue(); } catch (e) { window.__gbNative.rescueResult(false); }
+      return;
+    }
+    window.__gbNative.rescueResult(true);
+  });
+  $('menu').addEventListener('click', function () { renderSettings(); open(dlgSet); });
+  $('closeSet').addEventListener('click', function () { close(dlgSet); });
+  $('restart').addEventListener('click', newGame);
+  $('privacy').hidden = !(native && typeof native.openPrivacy === 'function');
+  $('privacy').addEventListener('click', function () { nat('openPrivacy'); });
+
+  var resetArmed = false;
+  function renderSettings() {
+    $('optSound').setAttribute('aria-checked', String(settings.sound));
+    $('optHaptics').setAttribute('aria-checked', String(settings.haptics));
+    $('optHaptics').hidden = !navigator.vibrate;
+    $('rowHaptics').hidden = !navigator.vibrate;
+    var box = $('skins'); box.innerHTML = '';
+    SKINS.forEach(function (s) {
+      var b = document.createElement('button');
+      b.className = 'skin' + (s.id === settings.skin ? ' on' : ''); b.type = 'button';
+      b.setAttribute('aria-pressed', String(s.id === settings.skin));
+      b.innerHTML = '<span class="sw" style="background:linear-gradient(135deg,' + s.blocks[0] + ',' + s.blocks[3] + ',' + s.blocks[5] + ')"></span>' + s.name;
+      b.addEventListener('click', function () { settings.skin = s.id; saveSettings(); applySkin(); renderSettings(); draw(); });
+      box.appendChild(b);
+    });
+    $('resetBest').textContent = resetArmed ? 'Tap again to confirm' : 'Reset best score';
+  }
+  $('optSound').addEventListener('click', function () { settings.sound = !settings.sound; saveSettings(); ensureAudio(); renderSettings(); if (settings.sound) sfx.pick(); });
+  $('optHaptics').addEventListener('click', function () { settings.haptics = !settings.haptics; saveSettings(); renderSettings(); buzz(20); });
+  $('resetBest').addEventListener('click', function () {
+    if (!resetArmed) { resetArmed = true; renderSettings(); setTimeout(function () { resetArmed = false; renderSettings(); }, 3000); return; }
+    best = 0; startBest = 0; store.del('gb.best'); resetArmed = false; renderSettings(); requestDraw();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { if (dlgSet.classList.contains('show')) close(dlgSet); }
+    else if (e.key === 'm' || e.key === 'M') { settings.sound = !settings.sound; saveSettings(); }
+    else if ((e.key === 'n' || e.key === 'N') && !dlgOpen()) { /* no accidental restarts */ }
+  });
+
+  function applySkin() {
+    var sk = skin(), s = document.documentElement.style;
+    s.setProperty('--bg1', sk.bg1); s.setProperty('--bg2', sk.bg2); s.setProperty('--text', sk.text);
+    s.setProperty('--dim', sk.dim); s.setProperty('--accent', sk.accent); s.setProperty('--panel', sk.panel);
+    var m = document.querySelector('meta[name=theme-color]'); if (m) m.setAttribute('content', sk.bg2);
+  }
+
+  document.addEventListener('visibilitychange', function () { if (document.hidden) persist(); });
+  window.addEventListener('pagehide', persist);
+  window.addEventListener('resize', layout);
+  window.addEventListener('orientationchange', function () { setTimeout(layout, 100); });
+  if (window.ResizeObserver) new ResizeObserver(layout).observe(canvas);
+
+  // ---------- test hook (read-only helpers for automated checks) ----------
+  window.__gb = { game: function () { return game; }, layout: function () { return L; }, place: place, newGame: newGame };
+
+  applySkin(); layout();
+  fx.trayIn = [now(), now() + 70, now() + 140];
+  if (game.over) showOver(); else persist();
+  requestDraw();
+})();
+
+</script>
+</body>
+</html>

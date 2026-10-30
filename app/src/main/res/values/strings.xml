@@ -1,18 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Block Blast Ultimate</string>
-    <string name="score_label">SCORE</string>
-    <string name="best_score_label">BEST</string>
-    <string name="combo_label">COMBO ×%1$d</string>
-    <string name="new_game">New Game</string>
-    <string name="sound_on">Sound: ON</string>
-    <string name="sound_off">Sound: OFF</string>
-    <string name="privacy_settings">Privacy</string>
-    <string name="game_over_title">No Moves Left!</string>
-    <string name="game_over_subtitle">Final Score: %1$d • Best: %2$d</string>
-    <string name="watch_ad_continue">Watch Rewarded Ad to Continue (1×)</string>
-    <string name="play_again">Play Again</string>
-    <string name="test_mode_badge">TEST AD MODE • ZERO LIVE TRAFFIC</string>
-    <string name="cd_board_grid">8 by 8 Block Blast puzzle board</string>
-    <string name="cd_piece_slot">Draggable and tappable block piece slot %1$d</string>
+    <string name="app_name">Gridbloom</string>
 </resources>

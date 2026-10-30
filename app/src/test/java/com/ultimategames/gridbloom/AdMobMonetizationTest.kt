@@ -1,10 +1,10 @@
-package com.ultimategames.blockblast
+package com.ultimategames.gridbloom
 
-import com.ultimategames.blockblast.ads.AdMobConfig
-import com.ultimategames.blockblast.ads.AdMobEnvironmentConfig
-import com.ultimategames.blockblast.ads.InterstitialFrequencyCapper
-import com.ultimategames.blockblast.ads.MonetizationAnalytics
-import com.ultimategames.blockblast.ads.MonetizationEvent
+import com.ultimategames.gridbloom.ads.AdMobConfig
+import com.ultimategames.gridbloom.ads.AdMobEnvironmentConfig
+import com.ultimategames.gridbloom.ads.InterstitialFrequencyCapper
+import com.ultimategames.gridbloom.ads.MonetizationAnalytics
+import com.ultimategames.gridbloom.ads.MonetizationEvent
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -44,7 +44,7 @@ class AdMobMonetizationTest {
             rewardedAdUnitId = "ca-app-pub-1234567890123456/1111111111",
             interstitialAdUnitId = "ca-app-pub-1234567890123456/2222222222",
             bannerAdUnitId = "ca-app-pub-1234567890123456/3333333333",
-            privacyPolicyUrl = "https://ultimategames.studio/blockblast/privacy"
+            privacyPolicyUrl = "https://ultimategames.studio/gridbloom/privacy"
         )
         val report2 = AdMobConfig.validateReleaseConfig(validRelease)
         assertTrue(report2.isValidForProduction)

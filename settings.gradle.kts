@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "BlockBlastUltimate"
+rootProject.name = "Gridbloom"
 include(":app")
